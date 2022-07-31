@@ -1,6 +1,6 @@
-baseURL = 'https://kiranshila.github.io/blog_template/'
+baseURL = 'https://LuuBluum.github.io'
 languageCode = 'en-us'
-title = 'My New Hugo Site'
+title = 'LuuBluum's Coding Blog'
 theme = "hugo-coder"
 languagecode = "en"
 defaultcontentlanguage = "en"
@@ -12,9 +12,9 @@ pygmentscodefences = true
 pygmentscodefencesguesssyntax = true
 
 [params]
-  author = "John Doe"
-  info = "Full Stack DevOps and Magician"
-  description = "John Doe's personal website"
+  author = "Brad (LuuBluum) Dragun"
+  info = "C++/Rust Developer"
+  description = "Brad Dragun's personal website"
   keywords = "blog,developer,personal"
   colorScheme = "auto"
 
