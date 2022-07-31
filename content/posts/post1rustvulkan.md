@@ -83,9 +83,9 @@ impl HelloTriangleApplication {
 }
 ```
 
-That handles the error handling (though we might refine that error return later), but we still don't actually import any sort of Vulkan API here. While there are a lot of Vulkan crates for Rust, the one I will use for this is `ash`. Why `ash`? Well, it more-or-less does the least amount of work for us, which is perfect for learning Vulkan. We'll just stick a `use ash::{vk, Entry};` at the top of the `basecode.rs` file; the first module is for the actual API, and the second for initializing everything. Just as with the tutorial, resource management is on us. Or at least, the most that it can be while using Rust.
+That handles the error handling (though we might refine that error return later), but we still don't actually import any sort of Vulkan API here. While there are a lot of Vulkan crates for Rust, the one I will use for this is [`ash`](https://docs.rs/ash/latest/ash/). Why `ash`? Well, it more-or-less does the least amount of work for us, which is perfect for learning Vulkan. We'll just stick a `use ash::{vk, Entry};` at the top of the `basecode.rs` file; the first module is for the actual API, and the second for initializing everything. Just as with the tutorial, resource management is on us. Or at least, the most that it can be while using Rust.
 
-Now, working our way through the tutorial, window management becomes a concern. This is no different in Rust, though our solution will be a little different here. While `glfw` does have bindings for Rust in the form of `glfw-rs`, for this we'll use `winit`. It's standardized enough and should for the most part mirror what we want enough that the differences should be negligible. Similar to the tutorial, we start by creating a function for handling window creation:
+Now, working our way through the tutorial, window management becomes a concern. This is no different in Rust, though our solution will be a little different here. While `glfw` does have bindings for Rust in the form of `glfw-rs`, for this we'll use [`winit`](https://docs.rs/winit/latest/winit/). It's standardized enough and should for the most part mirror what we want enough that the differences should be negligible. Similar to the tutorial, we start by creating a function for handling window creation:
 
 ```rust
 impl HelloTriangleApplication {
