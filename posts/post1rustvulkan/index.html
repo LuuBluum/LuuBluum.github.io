@@ -1,0 +1,216 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=color-scheme content="light dark"><meta name=author content="Brad Dragun (LuuBluum)"><meta name=description content="I&rsquo;ve decided to go and work through and learn Vulkan in Rust. There will surely be no issues with this and everything will go smoothly without any errors."><meta name=keywords content="blog,developer,personal"><meta name=twitter:card content="summary"><meta name=twitter:title content="Learning Vulkan with Rust, Part 1: Base Code"><meta name=twitter:description content="I&rsquo;ve decided to go and work through and learn Vulkan in Rust. There will surely be no issues with this and everything will go smoothly without any errors."><meta property="og:title" content="Learning Vulkan with Rust, Part 1: Base Code"><meta property="og:description" content="I&rsquo;ve decided to go and work through and learn Vulkan in Rust. There will surely be no issues with this and everything will go smoothly without any errors."><meta property="og:type" content="article"><meta property="og:url" content="https://LuuBluum.github.io/posts/post1rustvulkan/"><meta property="article:section" content="posts"><meta property="article:published_time" content="2022-07-30T21:05:46-07:00"><meta property="article:modified_time" content="2022-07-30T21:05:46-07:00"><title>LuuBluum's Coding Blog</title><link rel=canonical href=https://LuuBluum.github.io/posts/post1rustvulkan/><link rel=preload href="/fonts/forkawesome-webfont.woff2?v=1.2.0" as=font type=font/woff2 crossorigin><link rel=stylesheet href=/css/coder.min.6b1a4fbc48955b72aea7913e43fabeb45e8bc120da5aa41b598dd33adcac4b59.css integrity="sha256-axpPvEiVW3Kup5E+Q/q+tF6LwSDaWqQbWY3TOtysS1k=" crossorigin=anonymous media=screen><link rel=stylesheet href=/css/coder-dark.min.39e41a7f16bdf8cb16e43cae7d714fa1016f1d2d2898a5b3f27f42c9979204e2.css integrity="sha256-OeQafxa9+MsW5DyufXFPoQFvHS0omKWz8n9CyZeSBOI=" crossorigin=anonymous media=screen><link rel=icon type=image/png href=/images/favicon-32x32.png sizes=32x32><link rel=icon type=image/png href=/images/favicon-16x16.png sizes=16x16><link rel=apple-touch-icon href=/images/apple-touch-icon.png><link rel=apple-touch-icon sizes=180x180 href=/images/apple-touch-icon.png><link rel=manifest href=/site.webmanifest><link rel=mask-icon href=/images/safari-pinned-tab.svg color=#5bbad5><meta name=generator content="Hugo 0.101.0"></head><body class="preload-transitions colorscheme-auto"><div class=float-container><a id=dark-mode-toggle class=colorscheme-toggle><i class="fa fa-adjust fa-fw" aria-hidden=true></i></a></div><main class=wrapper><nav class=navigation><section class=container><a class=navigation-title href=/>LuuBluum's Coding Blog</a>
+<input type=checkbox id=menu-toggle>
+<label class="menu-button float-right" for=menu-toggle><i class="fa fa-bars fa-fw" aria-hidden=true></i></label><ul class=navigation-list><li class=navigation-item><a class=navigation-link href=/posts/>Blog</a></li><li class=navigation-item><a class=navigation-link href=/about/>About</a></li></ul></section></nav><div class=content><section class="container post"><article><header><div class=post-title><h1 class=title><a class=title-link href=https://LuuBluum.github.io/posts/post1rustvulkan/>Learning Vulkan with Rust, Part 1: Base Code</a></h1></div><div class=post-meta><div class=date><span class=posted-on><i class="fa fa-calendar" aria-hidden=true></i>
+<time datetime=2022-07-30T21:05:46-07:00>July 30, 2022</time></span>
+<span class=reading-time><i class="fa fa-clock-o" aria-hidden=true></i>
+6-minute read</span></div><div class=categories><i class="fa fa-folder" aria-hidden=true></i>
+<a href=/categories/rust/>Rust</a>
+<span class=separator>•</span>
+<a href=/categories/vulkan/>Vulkan</a></div></div></header><div><p>I&rsquo;ve decided to go and work through and learn Vulkan in Rust. There will surely be no issues with this and everything will go smoothly without any errors.</p><p>I&rsquo;ve decided to go and work through and learn Vulkan in Rust. I would usually work through something like this in C++, but more often than not I find setting up a project in C++ far more of a headache than it should be. Rust, at least, doesn&rsquo;t require interacting with CMake files, which is always a perk. Plus, this gives me an opportunity to more fully learn Rust.</p><h2 id=getting-started>Getting Started
+<a class=heading-link href=#getting-started><i class="fa fa-link" aria-hidden=true></i></a></h2><p>Starting with the standard <a href=https://vulkan-tutorial.com>Vulkan tutorial</a>, the first relevant code-bits are in <a href=https://vulkan-tutorial.com/Development_environment>setting up the development environment</a>. However, outside of installing the Vulkan SDK itself, the setup for the equivalent in Rust is far simpler. No need for Visual Studio; a standard Rust environment will do. As for the relevant crates, those will be tackled as they come up during the tutorial.</p><p>The <a href=https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code>base code</a> section is where we start encountering actual code. The first thing we encounter is a standard C++ class with a public <code>run()</code> method alongside several private methods that execute in sequence. Since we&rsquo;re just going to be modifying this object rather than performing specific implementations, we can keep things simple and just replicate the structure:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>pub</span> <span style=font-weight:700>struct</span> <span style=font-weight:700>HelloTriangleApplication</span> {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>impl</span> HelloTriangleApplication {
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> init_vulkan(&amp;self) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> main_loop(&amp;self) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> cleanup(&amp;self) {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>pub</span> <span style=font-weight:700>fn</span> run(&amp;self) {
+</span></span><span style=display:flex><span>        self.init_vulkan();
+</span></span><span style=display:flex><span>        self.main_loop();
+</span></span><span style=display:flex><span>        self.cleanup();
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>For sanity we&rsquo;ll keep main in its own file:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>mod</span> <span style=font-weight:700>basecode</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>use</span> basecode::HelloTriangleApplication;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>fn</span> main() {
+</span></span><span style=display:flex><span>    <span style=font-weight:700>let</span> app = HelloTriangleApplication {};
+</span></span><span style=display:flex><span>    app.run();
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>There&rsquo;s an immediate concern, however. While the original code handles errors with exceptions, here we have no error-handling mechanism at all. As much fun as it sounds to just panic if anything goes wrong during the drawing loop, that&rsquo;ll no doubt cause problems down the line, so best to actually implement some amount of error-handling:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>use</span> std::error::Error;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>pub</span> <span style=font-weight:700>struct</span> <span style=font-weight:700>HelloTriangleApplication</span> {
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>impl</span> HelloTriangleApplication {
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> init_vulkan(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt; {
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> main_loop(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> cleanup(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>pub</span> <span style=font-weight:700>fn</span> run(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        self.init_vulkan()?;
+</span></span><span style=display:flex><span>        self.main_loop()?;
+</span></span><span style=display:flex><span>        self.cleanup()?;
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>That handles the error handling (though we might refine that error return later), but we still don&rsquo;t actually import any sort of Vulkan API here. While there are a lot of Vulkan crates for Rust, the one I will use for this is <code>ash</code>. Why <code>ash</code>? Well, it more-or-less does the least amount of work for us, which is perfect for learning Vulkan. We&rsquo;ll just stick a <code>use ash::{vk, Entry};</code> at the top of the <code>basecode.rs</code> file; the first module is for the actual API, and the second for initializing everything. Just as with the tutorial, resource management is on us. Or at least, the most that it can be while using Rust.</p><p>Now, working our way through the tutorial, window management becomes a concern. This is no different in Rust, though our solution will be a little different here. While <code>glfw</code> does have bindings for Rust in the form of <code>glfw-rs</code>, for this we&rsquo;ll use <code>winit</code>. It&rsquo;s standardized enough and should for the most part mirror what we want enough that the differences should be negligible. Similar to the tutorial, we start by creating a function for handling window creation:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>impl</span> HelloTriangleApplication {
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> init_window(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt; {
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-style:italic>// ...
+</span></span></span><span style=display:flex><span><span style=font-style:italic></span>    
+</span></span><span style=display:flex><span>    <span style=font-weight:700>pub</span> <span style=font-weight:700>fn</span> run(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        self.init_window()?;
+</span></span><span style=display:flex><span>        self.init_vulkan()?;
+</span></span><span style=display:flex><span>        self.main_loop()?;
+</span></span><span style=display:flex><span>        self.cleanup()?;
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Then, we populate the whole thing:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>use</span> std::error::Error;
+</span></span><span style=display:flex><span><span style=font-weight:700>use</span> ash::{vk, Entry};
+</span></span><span style=display:flex><span><span style=font-weight:700>use</span> winit::{
+</span></span><span style=display:flex><span>    event::{Event, WindowEvent},
+</span></span><span style=display:flex><span>    event_loop::{ControlFlow, EventLoop},
+</span></span><span style=display:flex><span>    window::WindowBuilder,
+</span></span><span style=display:flex><span>    dpi::PhysicalSize,
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>const</span> width : <span>u32</span> = 800;
+</span></span><span style=display:flex><span><span style=font-weight:700>const</span> height : <span>u32</span> = 600;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>pub</span> <span style=font-weight:700>struct</span> <span style=font-weight:700>HelloTriangleApplication</span> {
+</span></span><span style=display:flex><span>    window : <span style=font-weight:700>winit</span>::window::Window,
+</span></span><span style=display:flex><span>    event_loop : <span style=font-weight:700>winit</span>::event_loop::EventLoop&lt;()&gt;,
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>impl</span> HelloTriangleApplication {
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> init_window(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt; {
+</span></span><span style=display:flex><span>        self.event_loop = EventLoop::new();
+</span></span><span style=display:flex><span>        self.window = WindowBuilder::new()
+</span></span><span style=display:flex><span>            .with_resizable(<span style=font-weight:700>false</span>)
+</span></span><span style=display:flex><span>            .with_inner_size(PhysicalSize::new(width, height))
+</span></span><span style=display:flex><span>            .build(&amp;self.event_loop)?;
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> init_vulkan(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt; {
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> main_loop(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        self.event_loop.run(|event, _, control_flow| {
+</span></span><span style=display:flex><span>            *control_flow = ControlFlow::Wait;
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>            <span style=font-weight:700>match</span> event {
+</span></span><span style=display:flex><span>                Event::WindowEvent {
+</span></span><span style=display:flex><span>                    event: <span style=font-weight:700>WindowEvent</span>::CloseRequested,
+</span></span><span style=display:flex><span>                    window_id,
+</span></span><span style=display:flex><span>                } <span style=font-weight:700>if</span> window_id == self.window.id() =&gt; *control_flow = ControlFlow::Exit,
+</span></span><span style=display:flex><span>                _ =&gt; (),
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        });
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> cleanup(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>pub</span> <span style=font-weight:700>fn</span> run(&amp;self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        self.init_window()?;
+</span></span><span style=display:flex><span>        self.init_vulkan()?;
+</span></span><span style=display:flex><span>        self.main_loop()?;
+</span></span><span style=display:flex><span>        self.cleanup()?;
+</span></span><span style=display:flex><span>        Ok(())
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Notably, we do not bother adding window closing to <code>cleanup()</code> since <code>winit</code> handles this for us. Well, everything seems to be working just fine so far! that&rsquo;s rather surpr—</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mysql data-lang=mysql><span style=display:flex><span>error: cannot construct `HelloTriangleApplication` <span style=font-weight:700>with</span> struct literal syntax due <span style=font-weight:700>to</span> inaccessible fields
+</span></span><span style=display:flex><span> --&gt; src<span>\</span>main.rs:6:15
+</span></span><span style=display:flex><span>  |
+</span></span><span style=display:flex><span>6 |     let app = HelloTriangleApplication <span>{}</span>;
+</span></span><span style=display:flex><span>  |               ^^^^^^^^^^^^^^^^^^^^^^^^
+</span></span></code></pre></div><p>Well. It would seem our naïve approach has run aground. We need to reconfigure our window initialization into a <code>::new()</code> function so that everything is initialized properly.</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>pub</span> <span style=font-weight:700>fn</span> new() -&gt; <span style=font-weight:700>Self</span> {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> event_loop = EventLoop::new();
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> window = WindowBuilder::new()
+</span></span><span style=display:flex><span>            .with_resizable(<span style=font-weight:700>false</span>)
+</span></span><span style=display:flex><span>            .with_inner_size(PhysicalSize::new(WIDTH, HEIGHT))
+</span></span><span style=display:flex><span>            .build(&amp;event_loop).unwrap();
+</span></span><span style=display:flex><span>        Self {
+</span></span><span style=display:flex><span>            event_loop : <span style=font-weight:700>event_loop</span>,
+</span></span><span style=display:flex><span>            window : <span style=font-weight:700>window</span>,
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Straightforward enough. This rather removes needing the <code>init_window()</code> function, so we drop that. Everything now should be just fine. Just f—</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-mysql data-lang=mysql><span style=display:flex><span>error[E0507]: cannot move <span style=font-weight:700>out</span> of `self.event_loop` which <span style=font-weight:700>is</span> behind a shared reference
+</span></span><span style=display:flex><span>  --&gt; src<span>\</span>basecode.rs:34:9
+</span></span><span style=display:flex><span>   |
+</span></span><span style=display:flex><span>34 |         self.event_loop.run(|event, _, control_flow| <span>{</span>
+</span></span><span style=display:flex><span>   |         ^^^^^^^^^^^^^^^ move occurs because `self.event_loop` has type `EventLoop&lt;()&gt;`, which does <span style=font-weight:700>not</span> implement the `Copy` trait
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>error[E0521]: borrowed data escapes outside of associated function
+</span></span><span style=display:flex><span>  --&gt; src<span>\</span>basecode.rs:34:9
+</span></span><span style=display:flex><span>   |
+</span></span><span style=display:flex><span>33 |       fn main_loop(&amp;self) -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt;  <span>{</span>
+</span></span><span style=display:flex><span>   |                    ---<span style=font-style:italic>--
+</span></span></span><span style=display:flex><span><span style=font-style:italic>   |                    |
+</span></span></span><span style=display:flex><span><span style=font-style:italic></span>   |                    `self` <span style=font-weight:700>is</span> a reference that <span style=font-weight:700>is</span> only valid <span style=font-weight:700>in</span> the associated function body
+</span></span><span style=display:flex><span>   |                    let<span style=font-style:italic>&#39;s call the lifetime of this reference `&#39;</span>1`
+</span></span><span style=display:flex><span>34 | /         self.event_loop.run(|event, _, control_flow| <span>{</span>
+</span></span><span style=display:flex><span>35 | |             *control_flow = ControlFlow::Wait;
+</span></span><span style=display:flex><span>36 | |
+</span></span><span style=display:flex><span>37 | |             <span style=font-weight:700>match</span> event <span>{</span>
+</span></span><span style=display:flex><span>...  |
+</span></span><span style=display:flex><span>43 | |             <span>}</span>
+</span></span><span style=display:flex><span>44 | |         <span>}</span>);
+</span></span><span style=display:flex><span>   | |          ^
+</span></span><span style=display:flex><span>   | |          |
+</span></span><span style=display:flex><span>   | |__________`self` escapes the associated function body here
+</span></span><span style=display:flex><span>   |            argument requires that `<span style=font-style:italic>&#39;1` must outlive `&#39;</span>static`
+</span></span></code></pre></div><p>Uh oh. So, lots of problems here, namely that our main loop is not running on the main thread and passes off our reference to self to this other thread. This ruins the lifetime semantics, so Rust disagrees with the decision. The solution, then, is to scrap all of this fiddling-with-other-function stuff completely and just keep things simple:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>use</span> std::error::Error;
+</span></span><span style=display:flex><span><span style=font-weight:700>use</span> ash::{vk, Entry};
+</span></span><span style=display:flex><span><span style=font-weight:700>use</span> winit::{
+</span></span><span style=display:flex><span>    event::{Event, WindowEvent},
+</span></span><span style=display:flex><span>    event_loop::{ControlFlow, EventLoop},
+</span></span><span style=display:flex><span>    window::WindowBuilder,
+</span></span><span style=display:flex><span>    dpi::PhysicalSize,
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>const</span> WIDTH : <span>u32</span> = 800;
+</span></span><span style=display:flex><span><span style=font-weight:700>const</span> HEIGHT : <span>u32</span> = 600;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>pub</span> <span style=font-weight:700>struct</span> <span style=font-weight:700>HelloTriangleApplication</span> {
+</span></span><span style=display:flex><span>    event_loop : <span style=font-weight:700>winit</span>::event_loop::EventLoop&lt;()&gt;,
+</span></span><span style=display:flex><span>    window : <span style=font-weight:700>winit</span>::window::Window,
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=font-weight:700>impl</span> HelloTriangleApplication {
+</span></span><span style=display:flex><span>    <span style=font-weight:700>pub</span> <span style=font-weight:700>fn</span> new() -&gt; <span style=font-weight:700>Self</span> {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> event_loop = EventLoop::new();
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> window = WindowBuilder::new()
+</span></span><span style=display:flex><span>            .with_resizable(<span style=font-weight:700>false</span>)
+</span></span><span style=display:flex><span>            .with_inner_size(PhysicalSize::new(WIDTH, HEIGHT))
+</span></span><span style=display:flex><span>            .build(&amp;event_loop).unwrap();
+</span></span><span style=display:flex><span>        Self {
+</span></span><span style=display:flex><span>            event_loop : <span style=font-weight:700>event_loop</span>,
+</span></span><span style=display:flex><span>            window : <span style=font-weight:700>window</span>,
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>pub</span> <span style=font-weight:700>fn</span> run(self) -&gt; Result&lt;(), Box&lt;<span style=font-weight:700>dyn</span> Error&gt;&gt;  {
+</span></span><span style=display:flex><span>        self.event_loop.run(<span style=font-weight:700>move</span> |event, _, control_flow| {
+</span></span><span style=display:flex><span>            *control_flow = ControlFlow::Wait;
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>            <span style=font-weight:700>match</span> event {
+</span></span><span style=display:flex><span>                Event::WindowEvent {
+</span></span><span style=display:flex><span>                    event: <span style=font-weight:700>WindowEvent</span>::CloseRequested,
+</span></span><span style=display:flex><span>                    window_id,
+</span></span><span style=display:flex><span>                } <span style=font-weight:700>if</span> window_id == self.window.id() =&gt; *control_flow = ControlFlow::Exit,
+</span></span><span style=display:flex><span>                _ =&gt; (),
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        });
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Now, all we have is a <code>new()</code> to create the app and <code>run()</code> to execute. Cleanup is implicit (at least so far), and any initialization happens when we create the object in the first place. Everything builds fine now! All the fires are out! There will surely be no more fires the moment we start touching Vulkan stuff!</p></div><footer></footer></article></section></div><footer class=footer><section class=container>©
+2022
+Brad Dragun (LuuBluum)
+·
+Powered by <a href=https://gohugo.io/>Hugo</a> & <a href=https://github.com/luizdepra/hugo-coder/>Coder</a>.</section></footer></main><script src=/js/coder.min.236049395dc3682fb2719640872958e12f1f24067bb09c327b233e6290c7edac.js integrity="sha256-I2BJOV3DaC+ycZZAhylY4S8fJAZ7sJwyeyM+YpDH7aw="></script></body></html>
