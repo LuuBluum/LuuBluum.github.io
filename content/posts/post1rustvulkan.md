@@ -6,7 +6,7 @@ draft: false
 url: ""
 ---
 
-I've decided to go and work through and learn Vulkan in Rust. There will surely be no issues with this and everything will go smoothly without any errors.
+I've decided to go and work through and learn Vulkan in Rust. There will surely be no issues with this and everything will go smoothly without any errors. All of the code can be found at [this repo](https://github.com/LuuBluum/Learning-Vulkan-with-Rust).
 
 <!--more-->
 
