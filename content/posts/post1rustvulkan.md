@@ -221,7 +221,6 @@ error[E0521]: borrowed data escapes outside of associated function
 Uh oh. So, lots of problems here, namely that our main loop is not running on the main thread and passes off our reference to self to this other thread. This ruins the lifetime semantics, so Rust disagrees with the decision. The solution, then, is to scrap all of this fiddling-with-other-function stuff completely and just keep things simple:
 
 ```rust
-use std::error::Error;
 use ash::{vk, Entry};
 use winit::{
     event::{Event, WindowEvent},
@@ -250,7 +249,7 @@ impl HelloTriangleApplication {
             window : window,
         }
     }
-    pub fn run(self) -> Result<(), Box<dyn Error>>  {
+    pub fn run(self) {
         self.event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
     
@@ -267,3 +266,5 @@ impl HelloTriangleApplication {
 ```
 
 Now, all we have is a `new()` to create the app and `run()` to execute. Cleanup is implicit (at least so far), and any initialization happens when we create the object in the first place. Everything builds fine now! All the fires are out! There will surely be no more fires the moment we start touching Vulkan stuff!
+
+And yes, we lost the error handling setup that we were going for before; we'll have to work out all of that again later.
