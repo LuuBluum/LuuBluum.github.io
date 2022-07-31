@@ -10,7 +10,7 @@ I've decided to go and work through and learn Vulkan in Rust. There will surely 
 
 <!--more-->
 
-I've decided to go and work through and learn Vulkan in Rust. I would usually work through something like this in C++, but more often than not I find setting up a project in C++ far more of a headache than it should be. Rust, at least, doesn't require interacting with CMake files, which is always a perk. Plus, this gives me an opportunity to more fully learn Rust.
+I would usually work through something like this in C++, but more often than not I find setting up a project in C++ far more of a headache than it should be. Rust, at least, doesn't require interacting with CMake files, which is always a perk. Plus, this gives me an opportunity to more fully learn Rust.
 
 
 ## Getting Started
