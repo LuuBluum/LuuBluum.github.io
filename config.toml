@@ -16,10 +16,7 @@ pygmentscodefencesguesssyntax = true
   info = "Full Stack DevOps and Magician"
   description = "John Doe's personal website"
   keywords = "blog,developer,personal"
-  avatarurl = "images/avatar.jpg"
-
   colorScheme = "auto"
-  hidecolorschemetoggle = false
 
 [taxonomies]
   category = "categories"
