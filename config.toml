@@ -1,6 +1,6 @@
 baseURL = 'https://LuuBluum.github.io'
 languageCode = 'en-us'
-title = 'LuuBluum's Coding Blog'
+title = 'LuuBluum\'s Coding Blog'
 theme = "hugo-coder"
 languagecode = "en"
 defaultcontentlanguage = "en"
