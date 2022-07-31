@@ -12,7 +12,7 @@ pygmentscodefences = true
 pygmentscodefencesguesssyntax = true
 
 [params]
-  author = "Brad (LuuBluum) Dragun"
+  author = "Brad Dragun (LuuBluum)"
   info = "C++/Rust Developer"
   description = "Brad Dragun's personal website"
   keywords = "blog,developer,personal"
