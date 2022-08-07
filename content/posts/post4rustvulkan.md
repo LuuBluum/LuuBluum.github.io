@@ -6,7 +6,7 @@ draft: false
 url: ""
 ---
 
-With the [physical](https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families) and [logical](https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Logical_device_and_queues) devices now configured, we can move on to actually creating a Vulkan surface to draw on. From there, we can actually start fiddling with layers relevant to graphics! All of the code can be found at [this repo](https://github.com/LuuBluum/Learning-Vulkan-with-Rust).
+With the [physical](https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families) and [logical](https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Logical_device_and_queues) devices now configured, we can move on to actually creating a [Vulkan surface](https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Window_surface) to draw on. From there, we can actually start fiddling with layers relevant to graphics! All of the code can be found at [this repo](https://github.com/LuuBluum/Learning-Vulkan-with-Rust).
 
 <!--more-->
 
