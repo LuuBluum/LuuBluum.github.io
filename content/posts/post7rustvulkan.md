@@ -922,10 +922,13 @@ Now, all we have left is to pause whenever there's nothing to draw (such as mini
                     window_id,
                 } if window_id == self.window.id() => *control_flow = ControlFlow::Exit,
                 Event::WindowEvent {
-                    event: WindowEvent::Resized(_),
+                    event: WindowEvent::Resized(size),
                     window_id,
                 } if window_id == self.window.id() => {
-                    self.vulkan_details.framebuffer_resized = true
+                    self.vulkan_details.framebuffer_resized = true;
+                    if size.width > 0 && size.height > 0 {
+                        self.vulkan_details.draw_frame(&self.window);
+                    }
                 }
                 Event::LoopDestroyed => {
                     unsafe { self.vulkan_details.device.device_wait_idle().unwrap() };
