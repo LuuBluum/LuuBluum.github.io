@@ -1,0 +1,662 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=color-scheme content="light dark"><meta name=author content="Brad Dragun (LuuBluum)"><meta name=description content="We drew a triangle! However, that&rsquo;s not enough; there are plenty of inefficiencies and not-so-good design practices that we did to get there. For one, we baked in our vertex information into the shader itself! That&rsquo;s not scalable. So, we need to start exploring vertex buffers to load in vertex data from the code itself. All of the code can be found at this repo."><meta name=keywords content="blog,developer,personal"><meta name=twitter:card content="summary"><meta name=twitter:title content="Learning Vulkan with Rust, Part 8: Vertex Buffers"><meta name=twitter:description content="We drew a triangle! However, that&rsquo;s not enough; there are plenty of inefficiencies and not-so-good design practices that we did to get there. For one, we baked in our vertex information into the shader itself! That&rsquo;s not scalable. So, we need to start exploring vertex buffers to load in vertex data from the code itself. All of the code can be found at this repo."><meta property="og:title" content="Learning Vulkan with Rust, Part 8: Vertex Buffers"><meta property="og:description" content="We drew a triangle! However, that&rsquo;s not enough; there are plenty of inefficiencies and not-so-good design practices that we did to get there. For one, we baked in our vertex information into the shader itself! That&rsquo;s not scalable. So, we need to start exploring vertex buffers to load in vertex data from the code itself. All of the code can be found at this repo."><meta property="og:type" content="article"><meta property="og:url" content="https://LuuBluum.github.io/posts/post8rustvulkan/"><meta property="article:section" content="posts"><meta property="article:published_time" content="2022-08-17T20:14:35-07:00"><meta property="article:modified_time" content="2022-08-17T20:14:35-07:00"><title>LuuBluum's Coding Blog</title><link rel=canonical href=https://LuuBluum.github.io/posts/post8rustvulkan/><link rel=preload href="/fonts/forkawesome-webfont.woff2?v=1.2.0" as=font type=font/woff2 crossorigin><link rel=stylesheet href=/css/coder.min.6b1a4fbc48955b72aea7913e43fabeb45e8bc120da5aa41b598dd33adcac4b59.css integrity="sha256-axpPvEiVW3Kup5E+Q/q+tF6LwSDaWqQbWY3TOtysS1k=" crossorigin=anonymous media=screen><link rel=stylesheet href=/css/coder-dark.min.39e41a7f16bdf8cb16e43cae7d714fa1016f1d2d2898a5b3f27f42c9979204e2.css integrity="sha256-OeQafxa9+MsW5DyufXFPoQFvHS0omKWz8n9CyZeSBOI=" crossorigin=anonymous media=screen><link rel=icon type=image/png href=/images/favicon-32x32.png sizes=32x32><link rel=icon type=image/png href=/images/favicon-16x16.png sizes=16x16><link rel=apple-touch-icon href=/images/apple-touch-icon.png><link rel=apple-touch-icon sizes=180x180 href=/images/apple-touch-icon.png><link rel=manifest href=/site.webmanifest><link rel=mask-icon href=/images/safari-pinned-tab.svg color=#5bbad5><meta name=generator content="Hugo 0.101.0"></head><body class="preload-transitions colorscheme-auto"><div class=float-container><a id=dark-mode-toggle class=colorscheme-toggle><i class="fa fa-adjust fa-fw" aria-hidden=true></i></a></div><main class=wrapper><nav class=navigation><section class=container><a class=navigation-title href=/>LuuBluum's Coding Blog</a>
+<input type=checkbox id=menu-toggle>
+<label class="menu-button float-right" for=menu-toggle><i class="fa fa-bars fa-fw" aria-hidden=true></i></label><ul class=navigation-list><li class=navigation-item><a class=navigation-link href=/posts/>Blog</a></li><li class=navigation-item><a class=navigation-link href=/about/>About</a></li></ul></section></nav><div class=content><section class="container post"><article><header><div class=post-title><h1 class=title><a class=title-link href=https://LuuBluum.github.io/posts/post8rustvulkan/>Learning Vulkan with Rust, Part 8: Vertex Buffers</a></h1></div><div class=post-meta><div class=date><span class=posted-on><i class="fa fa-calendar" aria-hidden=true></i>
+<time datetime=2022-08-17T20:14:35-07:00>August 17, 2022</time></span>
+<span class=reading-time><i class="fa fa-clock-o" aria-hidden=true></i>
+10-minute read</span></div><div class=categories><i class="fa fa-folder" aria-hidden=true></i>
+<a href=/categories/rust/>Rust</a>
+<span class=separator>•</span>
+<a href=/categories/vulkan/>Vulkan</a></div></div></header><div><p>We <a href=https://vulkan-tutorial.com/Drawing_a_triangle/Drawing/Framebuffers>drew</a> a triangle! However, that&rsquo;s not enough; there are plenty of inefficiencies and not-so-good design practices that we did to get there. For one, we baked in our vertex information into the shader itself! That&rsquo;s not scalable. So, we need to start exploring <a href=https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description>vertex buffers</a> to load in vertex data from the code itself. All of the code can be found at <a href=https://github.com/LuuBluum/Learning-Vulkan-with-Rust>this repo</a>.</p><p>First, we need to change our shader to actually accept an input position and color. I will not bother keeping around different copies of the shaders for this, because they&rsquo;re all identical to what&rsquo;s in the tutorial. Now, we need to create a vertex struct with some vertices to store things in the CPU side of things&mldr; except we don&rsquo;t have a linear algebra dependency yet. For this tutorial, we&rsquo;ll go with <a href=https://github.com/bitshifter/glam-rs>glam</a> since it best matches the tutorial and is purpose-designed for what we&rsquo;re trying to do here.</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback><span style=display:flex><span>[dependencies]
+</span></span><span style=display:flex><span>ash = {version = &#34;0.37.0&#34;, features = [&#34;linked&#34;]}
+</span></span><span style=display:flex><span>winit = &#34;0.27.1&#34;
+</span></span><span style=display:flex><span>raw-window-handle = &#34;0.5.0&#34;
+</span></span><span style=display:flex><span>glam = &#34;0.21.3&#34;
+</span></span></code></pre></div><p>Nothing like a new dependency. Anyway, we set things up with our new vertices:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>struct</span> <span style=font-weight:700>Vertex</span> {
+</span></span><span style=display:flex><span>    pos: <span style=font-weight:700>glam</span>::Vec2,
+</span></span><span style=display:flex><span>    color: <span style=font-weight:700>glam</span>::Vec3,
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>And our constant vector of vertices, which is&mldr; clunkier:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>const</span> VERTICES: [Vertex; 3] = [
+</span></span><span style=display:flex><span>    Vertex {
+</span></span><span style=display:flex><span>        pos: <span style=font-weight:700>Vec2</span> { x: 0.0, y: -0.5 },
+</span></span><span style=display:flex><span>        color: <span style=font-weight:700>Vec3</span> {
+</span></span><span style=display:flex><span>            x: 1.0,
+</span></span><span style=display:flex><span>            y: 0.0,
+</span></span><span style=display:flex><span>            z: 0.0,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    Vertex {
+</span></span><span style=display:flex><span>        pos: <span style=font-weight:700>Vec2</span> { x: 0.5, y: 0.5 },
+</span></span><span style=display:flex><span>        color: <span style=font-weight:700>Vec3</span> {
+</span></span><span style=display:flex><span>            x: 0.0,
+</span></span><span style=display:flex><span>            y: 1.0,
+</span></span><span style=display:flex><span>            z: 0.0,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    Vertex {
+</span></span><span style=display:flex><span>        pos: <span style=font-weight:700>Vec2</span> { x: -0.5, y: 0.5 },
+</span></span><span style=display:flex><span>        color: <span style=font-weight:700>Vec3</span> {
+</span></span><span style=display:flex><span>            x: 0.0,
+</span></span><span style=display:flex><span>            y: 0.0,
+</span></span><span style=display:flex><span>            z: 1.0,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>];
+</span></span></code></pre></div><p>This works well enough. We also need to implement a function to get a binding description for our vertices:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>impl</span> Vertex {
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> get_binding_description() -&gt; <span style=font-weight:700>vk</span>::VertexInputBindingDescription {
+</span></span><span style=display:flex><span>        vk::VertexInputBindingDescription {
+</span></span><span style=display:flex><span>            binding: 0,
+</span></span><span style=display:flex><span>            stride: <span style=font-weight:700>size_of</span>::&lt;Vertex&gt;() <span style=font-weight:700>as</span> <span>u32</span>,
+</span></span><span style=display:flex><span>            input_rate: <span style=font-weight:700>vk</span>::VertexInputRate::VERTEX,
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Now we need another function, for getting the attribute descriptions:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>            vk::VertexInputAttributeDescription {
+</span></span><span style=display:flex><span>                binding: 0,
+</span></span><span style=display:flex><span>                location: 0,
+</span></span><span style=display:flex><span>                format: <span style=font-weight:700>vk</span>::Format::R32G32_SFLOAT,
+</span></span><span style=display:flex><span>                offset: <span style=font-style:italic>// What do we do here?
+</span></span></span><span style=display:flex><span><span style=font-style:italic></span>            },
+</span></span></code></pre></div><p>So&mldr; we have a problem. There is no <code>offsetof</code> macro in Rust. There is, however, a crate for this functionality, but it also means our Vertex needs to be <code>#[repr(C)]</code> for it to work. Which makes sense, because we&rsquo;re sending this over to the GPU anyway. Add the <code>memoffset</code> crate to our project:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-fallback data-lang=fallback><span style=display:flex><span>[dependencies]
+</span></span><span style=display:flex><span>ash = {version = &#34;0.37.0&#34;, features = [&#34;linked&#34;]}
+</span></span><span style=display:flex><span>winit = &#34;0.27.1&#34;
+</span></span><span style=display:flex><span>raw-window-handle = &#34;0.5.0&#34;
+</span></span><span style=display:flex><span>glam = &#34;0.21.3&#34;
+</span></span><span style=display:flex><span>memoffset = &#34;0.6.5&#34;
+</span></span></code></pre></div><p>Now our function is nice and coherent:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> get_attribute_descriptions() -&gt; [vk::VertexInputAttributeDescription; 2] {
+</span></span><span style=display:flex><span>        [
+</span></span><span style=display:flex><span>            vk::VertexInputAttributeDescription {
+</span></span><span style=display:flex><span>                binding: 0,
+</span></span><span style=display:flex><span>                location: 0,
+</span></span><span style=display:flex><span>                format: <span style=font-weight:700>vk</span>::Format::R32G32_SFLOAT,
+</span></span><span style=display:flex><span>                offset: <span style=font-weight:700>offset_of</span>!(Vertex, pos) <span style=font-weight:700>as</span> <span>u32</span>,
+</span></span><span style=display:flex><span>            },
+</span></span><span style=display:flex><span>            vk::VertexInputAttributeDescription {
+</span></span><span style=display:flex><span>                binding: 0,
+</span></span><span style=display:flex><span>                location: 1,
+</span></span><span style=display:flex><span>                format: <span style=font-weight:700>vk</span>::Format::R32G32B32_SFLOAT,
+</span></span><span style=display:flex><span>                offset: <span style=font-weight:700>offset_of</span>!(Vertex, color) <span style=font-weight:700>as</span> <span>u32</span>,
+</span></span><span style=display:flex><span>            },
+</span></span><span style=display:flex><span>        ]
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>With that out of the way, we can now have our pipeline understand that we have some vertex inputs:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>        <span style=font-style:italic>//...
+</span></span></span><span style=display:flex><span><span style=font-style:italic></span>        <span style=font-weight:700>let</span> binding_description = Vertex::get_binding_description();
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> attribute_descriptions = Vertex::get_attribute_descriptions();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> vertex_input_info = vk::PipelineVertexInputStateCreateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+</span></span><span style=display:flex><span>            vertex_binding_description_count: 1,
+</span></span><span style=display:flex><span>            p_vertex_binding_descriptions: <span>&amp;</span><span style=font-weight:700>binding_description</span>,
+</span></span><span style=display:flex><span>            vertex_attribute_description_count: <span style=font-weight:700>attribute_descriptions</span>.len() <span style=font-weight:700>as</span> <span>u32</span>,
+</span></span><span style=display:flex><span>            p_vertex_attribute_descriptions: <span style=font-weight:700>attribute_descriptions</span>.as_ptr(),
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-style:italic>//...
+</span></span></span></code></pre></div><p>Our program now crashes. Progress!</p><h2 id=creating-the-vertex-buffer>Creating the Vertex Buffer
+<a class=heading-link href=#creating-the-vertex-buffer><i class="fa fa-link" aria-hidden=true></i></a></h2><p>So, now we actually need to create our <a href=https://vulkan-tutorial.com/en/Vertex_buffers/Vertex_buffer_creation>vertex buffer</a> so that we can access our vertices. This means yet another function, this time to create our buffer:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>struct</span> <span style=font-weight:700>VulkanDetails</span> {
+</span></span><span style=display:flex><span>    entry: <span style=font-weight:700>ash</span>::Entry,
+</span></span><span style=display:flex><span>    instance: <span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>    debug_messenger: <span style=font-weight:700>vk</span>::DebugUtilsMessengerEXT,
+</span></span><span style=display:flex><span>    surface: <span style=font-weight:700>vk</span>::SurfaceKHR,
+</span></span><span style=display:flex><span>    physical_device: <span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>    device: <span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>    graphics_queue: <span style=font-weight:700>vk</span>::Queue,
+</span></span><span style=display:flex><span>    present_queue: <span style=font-weight:700>vk</span>::Queue,
+</span></span><span style=display:flex><span>    swap_chain: <span style=font-weight:700>vk</span>::SwapchainKHR,
+</span></span><span style=display:flex><span>    swap_chain_images: Vec&lt;vk::Image&gt;,
+</span></span><span style=display:flex><span>    swap_chain_image_format: <span style=font-weight:700>vk</span>::Format,
+</span></span><span style=display:flex><span>    swap_chain_extent: <span style=font-weight:700>vk</span>::Extent2D,
+</span></span><span style=display:flex><span>    swap_chain_image_views: Vec&lt;vk::ImageView&gt;,
+</span></span><span style=display:flex><span>    render_pass: <span style=font-weight:700>vk</span>::RenderPass,
+</span></span><span style=display:flex><span>    pipeline_layout: <span style=font-weight:700>vk</span>::PipelineLayout,
+</span></span><span style=display:flex><span>    graphics_pipeline: <span style=font-weight:700>vk</span>::Pipeline,
+</span></span><span style=display:flex><span>    swap_chain_framebuffers: Vec&lt;vk::Framebuffer&gt;,
+</span></span><span style=display:flex><span>    command_pool: <span style=font-weight:700>vk</span>::CommandPool,
+</span></span><span style=display:flex><span>    vertex_buffer: <span style=font-weight:700>vk</span>::Buffer,
+</span></span><span style=display:flex><span>    command_buffers: Vec&lt;vk::CommandBuffer&gt;,
+</span></span><span style=display:flex><span>    image_available_semaphores: Vec&lt;vk::Semaphore&gt;,
+</span></span><span style=display:flex><span>    render_finished_semaphores: Vec&lt;vk::Semaphore&gt;,
+</span></span><span style=display:flex><span>    in_flight_fences: Vec&lt;vk::Fence&gt;,
+</span></span><span style=display:flex><span>    framebuffer_resized: <span>bool</span>,
+</span></span><span style=display:flex><span>    current_frame: <span>usize</span>,
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> create_vertex_buffer(device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device) -&gt; <span style=font-weight:700>vk</span>::Buffer {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_info = vk::BufferCreateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::BUFFER_CREATE_INFO,
+</span></span><span style=display:flex><span>            size: (VERTICES.len() * size_of::&lt;Vertex&gt;()) <span style=font-weight:700>as</span> <span>u64</span>,
+</span></span><span style=display:flex><span>            usage: <span style=font-weight:700>vk</span>::BufferUsageFlags::VERTEX_BUFFER,
+</span></span><span style=display:flex><span>            sharing_mode: <span style=font-weight:700>vk</span>::SharingMode::EXCLUSIVE,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> { device.create_buffer(&amp;buffer_info, None).unwrap() }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> cleanup(&amp;<span style=font-weight:700>mut</span> self) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            self.cleanup_swap_chain();
+</span></span><span style=display:flex><span>            self.device.destroy_buffer(self.vertex_buffer, None);
+</span></span><span style=display:flex><span>            self.device.destroy_pipeline(self.graphics_pipeline, None);
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .destroy_pipeline_layout(self.pipeline_layout, None);
+</span></span><span style=display:flex><span>            self.device.destroy_render_pass(self.render_pass, None);
+</span></span><span style=display:flex><span>            <span style=font-weight:700>for</span> i <span style=font-weight:700>in</span> 0..MAX_FRAMES_IN_FLIGHT {
+</span></span><span style=display:flex><span>                self.device
+</span></span><span style=display:flex><span>                    .destroy_semaphore(self.image_available_semaphores[i], None);
+</span></span><span style=display:flex><span>                self.device
+</span></span><span style=display:flex><span>                    .destroy_semaphore(self.render_finished_semaphores[i], None);
+</span></span><span style=display:flex><span>                self.device.destroy_fence(self.in_flight_fences[i], None);
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>            self.device.destroy_command_pool(self.command_pool, None);
+</span></span><span style=display:flex><span>            self.device.destroy_device(None);
+</span></span><span style=display:flex><span>            DebugUtils::new(&amp;self.entry, &amp;self.instance)
+</span></span><span style=display:flex><span>                .destroy_debug_utils_messenger(self.debug_messenger, None);
+</span></span><span style=display:flex><span>            Surface::new(&amp;self.entry, &amp;self.instance).destroy_surface(self.surface, None);
+</span></span><span style=display:flex><span>            self.instance.destroy_instance(None);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>That gives us a vertex buffer, but no memory. So, we need a function to find our specified memory:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> find_memory_type(
+</span></span><span style=display:flex><span>        instance: <span>&amp;</span><span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>        physical_device: <span>&amp;</span><span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>        type_filter: <span>u32</span>,
+</span></span><span style=display:flex><span>        properties: <span style=font-weight:700>vk</span>::MemoryPropertyFlags,
+</span></span><span style=display:flex><span>    ) -&gt; <span>u32</span> {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> mem_properties =
+</span></span><span style=display:flex><span>            <span style=font-weight:700>unsafe</span> { instance.get_physical_device_memory_properties(*physical_device) };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>for</span> i <span style=font-weight:700>in</span> 0..mem_properties.memory_type_count {
+</span></span><span style=display:flex><span>            <span style=font-weight:700>if</span> (type_filter &amp; (1 &lt;&lt; i)) != 0
+</span></span><span style=display:flex><span>                &amp;&amp; mem_properties.memory_types[i <span style=font-weight:700>as</span> <span>usize</span>].property_flags &amp; properties == properties
+</span></span><span style=display:flex><span>            {
+</span></span><span style=display:flex><span>                <span style=font-weight:700>return</span> i;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        panic!(<span style=font-style:italic>&#34;Unable to find suitable memory type!&#34;</span>)
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Plus modifying our buffer creation to account for this:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> create_vertex_buffer(
+</span></span><span style=display:flex><span>        instance: <span>&amp;</span><span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>        physical_device: <span>&amp;</span><span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>        device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>    ) -&gt; (vk::Buffer, vk::DeviceMemory) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_info = vk::BufferCreateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::BUFFER_CREATE_INFO,
+</span></span><span style=display:flex><span>            size: (VERTICES.len() * size_of::&lt;Vertex&gt;()) <span style=font-weight:700>as</span> <span>u64</span>,
+</span></span><span style=display:flex><span>            usage: <span style=font-weight:700>vk</span>::BufferUsageFlags::VERTEX_BUFFER,
+</span></span><span style=display:flex><span>            sharing_mode: <span style=font-weight:700>vk</span>::SharingMode::EXCLUSIVE,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer = <span style=font-weight:700>unsafe</span> { device.create_buffer(&amp;buffer_info, None).unwrap() };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> mem_requirements = <span style=font-weight:700>unsafe</span> { device.get_buffer_memory_requirements(buffer) };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> alloc_info = vk::MemoryAllocateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::MEMORY_ALLOCATE_INFO,
+</span></span><span style=display:flex><span>            allocation_size: <span style=font-weight:700>mem_requirements</span>.size,
+</span></span><span style=display:flex><span>            memory_type_index: <span style=font-weight:700>VulkanDetails</span>::find_memory_type(
+</span></span><span style=display:flex><span>                instance,
+</span></span><span style=display:flex><span>                physical_device,
+</span></span><span style=display:flex><span>                mem_requirements.memory_type_bits,
+</span></span><span style=display:flex><span>                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+</span></span><span style=display:flex><span>            ),
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_memory = <span style=font-weight:700>unsafe</span> { device.allocate_memory(&amp;alloc_info, None).unwrap() };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> { device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap() };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        (buffer, buffer_memory)
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=font-weight:700>fn</span> cleanup(&amp;<span style=font-weight:700>mut</span> self) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            self.cleanup_swap_chain();
+</span></span><span style=display:flex><span>            self.device.destroy_buffer(self.vertex_buffer, None);
+</span></span><span style=display:flex><span>            self.device.free_memory(self.vertex_buffer_memory, None);
+</span></span><span style=display:flex><span>            self.device.destroy_pipeline(self.graphics_pipeline, None);
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .destroy_pipeline_layout(self.pipeline_layout, None);
+</span></span><span style=display:flex><span>            self.device.destroy_render_pass(self.render_pass, None);
+</span></span><span style=display:flex><span>            <span style=font-weight:700>for</span> i <span style=font-weight:700>in</span> 0..MAX_FRAMES_IN_FLIGHT {
+</span></span><span style=display:flex><span>                self.device
+</span></span><span style=display:flex><span>                    .destroy_semaphore(self.image_available_semaphores[i], None);
+</span></span><span style=display:flex><span>                self.device
+</span></span><span style=display:flex><span>                    .destroy_semaphore(self.render_finished_semaphores[i], None);
+</span></span><span style=display:flex><span>                self.device.destroy_fence(self.in_flight_fences[i], None);
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>            self.device.destroy_command_pool(self.command_pool, None);
+</span></span><span style=display:flex><span>            self.device.destroy_device(None);
+</span></span><span style=display:flex><span>            DebugUtils::new(&amp;self.entry, &amp;self.instance)
+</span></span><span style=display:flex><span>                .destroy_debug_utils_messenger(self.debug_messenger, None);
+</span></span><span style=display:flex><span>            Surface::new(&amp;self.entry, &amp;self.instance).destroy_surface(self.surface, None);
+</span></span><span style=display:flex><span>            self.instance.destroy_instance(None);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Now we need to actually bind the memory. The Vulkan tutorial gives us this:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c++ data-lang=c++><span style=display:flex><span><span>void</span>* data;
+</span></span><span style=display:flex><span>vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &amp;data);
+</span></span></code></pre></div><p>This is a problem. Casually casting away <code>void*</code> is&mldr; nontrivial in Rust. This is going to be messy. Let&rsquo;s try&mldr; <code>copy_from_nonoverlapping</code>. That seems right. Maybe.</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> create_vertex_buffer(
+</span></span><span style=display:flex><span>        instance: <span>&amp;</span><span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>        physical_device: <span>&amp;</span><span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>        device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>    ) -&gt; (vk::Buffer, vk::DeviceMemory) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_info = vk::BufferCreateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::BUFFER_CREATE_INFO,
+</span></span><span style=display:flex><span>            size: (VERTICES.len() * size_of::&lt;Vertex&gt;()) <span style=font-weight:700>as</span> <span>u64</span>,
+</span></span><span style=display:flex><span>            usage: <span style=font-weight:700>vk</span>::BufferUsageFlags::VERTEX_BUFFER,
+</span></span><span style=display:flex><span>            sharing_mode: <span style=font-weight:700>vk</span>::SharingMode::EXCLUSIVE,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer = <span style=font-weight:700>unsafe</span> { device.create_buffer(&amp;buffer_info, None).unwrap() };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> mem_requirements = <span style=font-weight:700>unsafe</span> { device.get_buffer_memory_requirements(buffer) };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> alloc_info = vk::MemoryAllocateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::MEMORY_ALLOCATE_INFO,
+</span></span><span style=display:flex><span>            allocation_size: <span style=font-weight:700>mem_requirements</span>.size,
+</span></span><span style=display:flex><span>            memory_type_index: <span style=font-weight:700>VulkanDetails</span>::find_memory_type(
+</span></span><span style=display:flex><span>                instance,
+</span></span><span style=display:flex><span>                physical_device,
+</span></span><span style=display:flex><span>                mem_requirements.memory_type_bits,
+</span></span><span style=display:flex><span>                vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+</span></span><span style=display:flex><span>            ),
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_memory = <span style=font-weight:700>unsafe</span> { device.allocate_memory(&amp;alloc_info, None).unwrap() };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> { device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap() };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            <span style=font-weight:700>let</span> data = device
+</span></span><span style=display:flex><span>                .map_memory(
+</span></span><span style=display:flex><span>                    buffer_memory,
+</span></span><span style=display:flex><span>                    0,
+</span></span><span style=display:flex><span>                    buffer_info.size,
+</span></span><span style=display:flex><span>                    vk::MemoryMapFlags::empty(),
+</span></span><span style=display:flex><span>                )
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            data.copy_from_nonoverlapping(VERTICES.as_ptr() <span style=font-weight:700>as</span> *<span style=font-weight:700>const</span> c_void, VERTICES.len());
+</span></span><span style=display:flex><span>            device.unmap_memory(buffer_memory);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        (buffer, buffer_memory)
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Then we link it into the command buffer:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> record_command_buffer(&amp;self, image_index: <span>usize</span>) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> begin_info = vk::CommandBufferBeginInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::COMMAND_BUFFER_BEGIN_INFO,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .begin_command_buffer(self.command_buffers[self.current_frame], &amp;begin_info)
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> clear_color = vk::ClearValue {
+</span></span><span style=display:flex><span>            color: <span style=font-weight:700>vk</span>::ClearColorValue {
+</span></span><span style=display:flex><span>                float32: [0.0, 0.0, 0.0, 1.0],
+</span></span><span style=display:flex><span>            },
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> render_pass_info = vk::RenderPassBeginInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::RENDER_PASS_BEGIN_INFO,
+</span></span><span style=display:flex><span>            render_pass: <span style=font-weight:700>self</span>.render_pass,
+</span></span><span style=display:flex><span>            framebuffer: <span style=font-weight:700>self</span>.swap_chain_framebuffers[image_index],
+</span></span><span style=display:flex><span>            render_area: <span style=font-weight:700>vk</span>::Rect2D {
+</span></span><span style=display:flex><span>                offset: <span style=font-weight:700>vk</span>::Offset2D { x: 0, y: 0 },
+</span></span><span style=display:flex><span>                extent: <span style=font-weight:700>self</span>.swap_chain_extent,
+</span></span><span style=display:flex><span>            },
+</span></span><span style=display:flex><span>            clear_value_count: 1,
+</span></span><span style=display:flex><span>            p_clear_values: <span>&amp;</span><span style=font-weight:700>clear_color</span>,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            self.device.cmd_begin_render_pass(
+</span></span><span style=display:flex><span>                self.command_buffers[self.current_frame],
+</span></span><span style=display:flex><span>                &amp;render_pass_info,
+</span></span><span style=display:flex><span>                vk::SubpassContents::INLINE,
+</span></span><span style=display:flex><span>            );
+</span></span><span style=display:flex><span>            self.device.cmd_bind_pipeline(
+</span></span><span style=display:flex><span>                self.command_buffers[self.current_frame],
+</span></span><span style=display:flex><span>                vk::PipelineBindPoint::GRAPHICS,
+</span></span><span style=display:flex><span>                self.graphics_pipeline,
+</span></span><span style=display:flex><span>            );
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> viewport = vk::Viewport {
+</span></span><span style=display:flex><span>            x: 0.0,
+</span></span><span style=display:flex><span>            y: 0.0,
+</span></span><span style=display:flex><span>            width: <span style=font-weight:700>self</span>.swap_chain_extent.width <span style=font-weight:700>as</span> <span>f32</span>,
+</span></span><span style=display:flex><span>            height: <span style=font-weight:700>self</span>.swap_chain_extent.height <span style=font-weight:700>as</span> <span>f32</span>,
+</span></span><span style=display:flex><span>            min_depth: 0.0,
+</span></span><span style=display:flex><span>            max_depth: 1.0,
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .cmd_set_viewport(self.command_buffers[self.current_frame], 0, &amp;[viewport]);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> scissor = vk::Rect2D {
+</span></span><span style=display:flex><span>            offset: <span style=font-weight:700>vk</span>::Offset2D { x: 0, y: 0 },
+</span></span><span style=display:flex><span>            extent: <span style=font-weight:700>self</span>.swap_chain_extent,
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> vertex_buffers = [self.vertex_buffer];
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> offsets: [vk::DeviceSize; 1] = [0];
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .cmd_set_scissor(self.command_buffers[self.current_frame], 0, &amp;[scissor]);
+</span></span><span style=display:flex><span>            self.device.cmd_bind_vertex_buffers(
+</span></span><span style=display:flex><span>                self.command_buffers[self.current_frame],
+</span></span><span style=display:flex><span>                0,
+</span></span><span style=display:flex><span>                &amp;vertex_buffers,
+</span></span><span style=display:flex><span>                &amp;offsets,
+</span></span><span style=display:flex><span>            );
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .cmd_draw(self.command_buffers[self.current_frame], 3, 1, 0, 0);
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .cmd_end_render_pass(self.command_buffers[self.current_frame]);
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .end_command_buffer(self.command_buffers[self.current_frame])
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>It compiles, it runs, and&mldr; we get a black box! I think our attempt at copying didn&rsquo;t work. Maybe instead of converting the array into a <code>c_void</code> pointer, we should do it the other way around:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+</span></span><span style=display:flex><span>            <span style=font-weight:700>let</span> data = device
+</span></span><span style=display:flex><span>                .map_memory(
+</span></span><span style=display:flex><span>                    buffer_memory,
+</span></span><span style=display:flex><span>                    0,
+</span></span><span style=display:flex><span>                    buffer_info.size,
+</span></span><span style=display:flex><span>                    vk::MemoryMapFlags::empty(),
+</span></span><span style=display:flex><span>                )
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            (data <span style=font-weight:700>as</span> *<span style=font-weight:700>mut</span> [Vertex; 3]).write(VERTICES);
+</span></span><span style=display:flex><span>            device.unmap_memory(buffer_memory);
+</span></span><span style=display:flex><span>        }
+</span></span></code></pre></div><p>There we go! Now we have a triangle again! One where the vertex details live in our Rust code, rather than in the shader itself! We can do better, though.</p><h2 id=the-staging-buffer>The Staging Buffer
+<a class=heading-link href=#the-staging-buffer><i class="fa fa-link" aria-hidden=true></i></a></h2><p>We can use an intermediary <a href=https://vulkan-tutorial.com/en/Vertex_buffers/Staging_buffer>staging buffer</a> to store memory before it ends up copied over. Now, the tutorial gives us an option to use a dedicated transfer queue. We&rsquo;ll consider that once we work out the other details. First, we abstract out our buffer creation:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> create_buffer(
+</span></span><span style=display:flex><span>        instance: <span>&amp;</span><span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>        physical_device: <span>&amp;</span><span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>        device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>        size: <span style=font-weight:700>vk</span>::DeviceSize,
+</span></span><span style=display:flex><span>        usage: <span style=font-weight:700>vk</span>::BufferUsageFlags,
+</span></span><span style=display:flex><span>        properties: <span style=font-weight:700>vk</span>::MemoryPropertyFlags,
+</span></span><span style=display:flex><span>    ) -&gt; (vk::Buffer, vk::DeviceMemory) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_info = vk::BufferCreateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::BUFFER_CREATE_INFO,
+</span></span><span style=display:flex><span>            size,
+</span></span><span style=display:flex><span>            usage,
+</span></span><span style=display:flex><span>            sharing_mode: <span style=font-weight:700>vk</span>::SharingMode::EXCLUSIVE,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer = <span style=font-weight:700>unsafe</span> { device.create_buffer(&amp;buffer_info, None).unwrap() };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> mem_requirements = <span style=font-weight:700>unsafe</span> { device.get_buffer_memory_requirements(buffer) };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> alloc_info = vk::MemoryAllocateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::MEMORY_ALLOCATE_INFO,
+</span></span><span style=display:flex><span>            allocation_size: <span style=font-weight:700>mem_requirements</span>.size,
+</span></span><span style=display:flex><span>            memory_type_index: <span style=font-weight:700>VulkanDetails</span>::find_memory_type(
+</span></span><span style=display:flex><span>                instance,
+</span></span><span style=display:flex><span>                physical_device,
+</span></span><span style=display:flex><span>                mem_requirements.memory_type_bits,
+</span></span><span style=display:flex><span>                properties,
+</span></span><span style=display:flex><span>            ),
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_memory = <span style=font-weight:700>unsafe</span> { device.allocate_memory(&amp;alloc_info, None).unwrap() };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        (buffer, buffer_memory)
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Then we can deconstruct our original <code>create_vertex_buffer</code> to play with this:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> create_vertex_buffer(
+</span></span><span style=display:flex><span>        instance: <span>&amp;</span><span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>        physical_device: <span>&amp;</span><span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>        device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>    ) -&gt; (vk::Buffer, vk::DeviceMemory) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_size = (VERTICES.len() * size_of::&lt;Vertex&gt;()) <span style=font-weight:700>as</span> <span>u64</span>;
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> (buffer, buffer_memory) = VulkanDetails::create_buffer(
+</span></span><span style=display:flex><span>            instance,
+</span></span><span style=display:flex><span>            physical_device,
+</span></span><span style=display:flex><span>            device,
+</span></span><span style=display:flex><span>            buffer_size,
+</span></span><span style=display:flex><span>            vk::BufferUsageFlags::VERTEX_BUFFER,
+</span></span><span style=display:flex><span>            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+</span></span><span style=display:flex><span>        );
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            <span style=font-weight:700>let</span> data = device
+</span></span><span style=display:flex><span>                .map_memory(buffer_memory, 0, buffer_size, vk::MemoryMapFlags::empty())
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            (data <span style=font-weight:700>as</span> *<span style=font-weight:700>mut</span> [Vertex; 3]).write(VERTICES);
+</span></span><span style=display:flex><span>            device.unmap_memory(buffer_memory);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        (buffer, buffer_memory)
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Almost there. We need to copy over the data between the buffers, meaning another function:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> copy_buffer(
+</span></span><span style=display:flex><span>        device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>        command_pool: <span>&amp;</span><span style=font-weight:700>vk</span>::CommandPool,
+</span></span><span style=display:flex><span>        graphics_queue: <span>&amp;</span><span style=font-weight:700>vk</span>::Queue,
+</span></span><span style=display:flex><span>        src_buffer: <span>&amp;</span><span style=font-weight:700>vk</span>::Buffer,
+</span></span><span style=display:flex><span>        dst_buffer: <span>&amp;</span><span style=font-weight:700>mut</span> vk::Buffer,
+</span></span><span style=display:flex><span>        size: <span style=font-weight:700>vk</span>::DeviceSize,
+</span></span><span style=display:flex><span>    ) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> alloc_info = vk::CommandBufferAllocateInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::COMMAND_BUFFER_ALLOCATE_INFO,
+</span></span><span style=display:flex><span>            level: <span style=font-weight:700>vk</span>::CommandBufferLevel::PRIMARY,
+</span></span><span style=display:flex><span>            command_pool: *command_pool,
+</span></span><span style=display:flex><span>            command_buffer_count: 1,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> command_buffer = <span style=font-weight:700>unsafe</span> { device.allocate_command_buffers(&amp;alloc_info).unwrap()[0] };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> begin_info = vk::CommandBufferBeginInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::COMMAND_BUFFER_BEGIN_INFO,
+</span></span><span style=display:flex><span>            flags: <span style=font-weight:700>vk</span>::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> copy_region = vk::BufferCopy {
+</span></span><span style=display:flex><span>            src_offset: 0,
+</span></span><span style=display:flex><span>            dst_offset: 0,
+</span></span><span style=display:flex><span>            size,
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> submit_info = vk::SubmitInfo {
+</span></span><span style=display:flex><span>            s_type: <span style=font-weight:700>vk</span>::StructureType::SUBMIT_INFO,
+</span></span><span style=display:flex><span>            command_buffer_count: 1,
+</span></span><span style=display:flex><span>            p_command_buffers: <span>&amp;</span><span style=font-weight:700>command_buffer</span>,
+</span></span><span style=display:flex><span>            ..Default::default()
+</span></span><span style=display:flex><span>        };
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            device
+</span></span><span style=display:flex><span>                .begin_command_buffer(command_buffer, &amp;begin_info)
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>            device.cmd_copy_buffer(command_buffer, *src_buffer, *dst_buffer, &amp;[copy_region]);
+</span></span><span style=display:flex><span>            device.end_command_buffer(command_buffer).unwrap();
+</span></span><span style=display:flex><span>            device
+</span></span><span style=display:flex><span>                .queue_submit(*graphics_queue, &amp;[submit_info], vk::Fence::null())
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>            device.queue_wait_idle(*graphics_queue).unwrap();
+</span></span><span style=display:flex><span>            device.free_command_buffers(*command_pool, &amp;[command_buffer]);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Notably our command pool and graphics queue are now involved in all of this. With that, we can finish out our vertex buffer creation:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> create_vertex_buffer(
+</span></span><span style=display:flex><span>        instance: <span>&amp;</span><span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>        physical_device: <span>&amp;</span><span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>        device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>        command_pool: <span>&amp;</span><span style=font-weight:700>vk</span>::CommandPool,
+</span></span><span style=display:flex><span>        graphics_queue: <span>&amp;</span><span style=font-weight:700>vk</span>::Queue,
+</span></span><span style=display:flex><span>    ) -&gt; (vk::Buffer, vk::DeviceMemory) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_size = (VERTICES.len() * size_of::&lt;Vertex&gt;()) <span style=font-weight:700>as</span> <span>u64</span>;
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> (staging_buffer, staging_buffer_memory) = VulkanDetails::create_buffer(
+</span></span><span style=display:flex><span>            instance,
+</span></span><span style=display:flex><span>            physical_device,
+</span></span><span style=display:flex><span>            device,
+</span></span><span style=display:flex><span>            buffer_size,
+</span></span><span style=display:flex><span>            vk::BufferUsageFlags::TRANSFER_SRC,
+</span></span><span style=display:flex><span>            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+</span></span><span style=display:flex><span>        );
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            <span style=font-weight:700>let</span> data = device
+</span></span><span style=display:flex><span>                .map_memory(
+</span></span><span style=display:flex><span>                    staging_buffer_memory,
+</span></span><span style=display:flex><span>                    0,
+</span></span><span style=display:flex><span>                    buffer_size,
+</span></span><span style=display:flex><span>                    vk::MemoryMapFlags::empty(),
+</span></span><span style=display:flex><span>                )
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            (data <span style=font-weight:700>as</span> *<span style=font-weight:700>mut</span> [Vertex; VERTICES.len()]).write(VERTICES);
+</span></span><span style=display:flex><span>            device.unmap_memory(staging_buffer_memory);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> (<span style=font-weight:700>mut</span> buffer, buffer_memory) = VulkanDetails::create_buffer(
+</span></span><span style=display:flex><span>            instance,
+</span></span><span style=display:flex><span>            physical_device,
+</span></span><span style=display:flex><span>            device,
+</span></span><span style=display:flex><span>            buffer_size,
+</span></span><span style=display:flex><span>            vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
+</span></span><span style=display:flex><span>            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+</span></span><span style=display:flex><span>        );
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        VulkanDetails::copy_buffer(
+</span></span><span style=display:flex><span>            device,
+</span></span><span style=display:flex><span>            command_pool,
+</span></span><span style=display:flex><span>            graphics_queue,
+</span></span><span style=display:flex><span>            &amp;staging_buffer,
+</span></span><span style=display:flex><span>            &amp;<span style=font-weight:700>mut</span> buffer,
+</span></span><span style=display:flex><span>            buffer_size,
+</span></span><span style=display:flex><span>        );
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            device.destroy_buffer(staging_buffer, None);
+</span></span><span style=display:flex><span>            device.free_memory(staging_buffer_memory, None);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        (buffer, buffer_memory)
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Now, there&rsquo;s some details about allocation here, and there&rsquo;s that earlier point about using a separate queue for all of this. All of that seems grossly overkill for what simple stuff we&rsquo;re doing here so we&rsquo;re not going to do any of it. Maybe at some point, but not right now. We&rsquo;re not even done yet, after all: we have one more buffer to take care of.</p><h2 id=index-buffer>Index Buffer
+<a class=heading-link href=#index-buffer><i class="fa fa-link" aria-hidden=true></i></a></h2><p>With the introduction of the <a href=https://vulkan-tutorial.com/en/Vertex_buffers/Index_buffer>index buffer</a>, our triangle will become a rectangle. Mostly because it allows us to have overlapping vertices that we want to avoid keeping in memory twice. Firstly, a new set of vertices:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>const</span> VERTICES: [Vertex; 4] = [
+</span></span><span style=display:flex><span>    Vertex {
+</span></span><span style=display:flex><span>        pos: <span style=font-weight:700>Vec2</span> { x: -0.5, y: -0.5 },
+</span></span><span style=display:flex><span>        color: <span style=font-weight:700>Vec3</span> {
+</span></span><span style=display:flex><span>            x: 1.0,
+</span></span><span style=display:flex><span>            y: 0.0,
+</span></span><span style=display:flex><span>            z: 0.0,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    Vertex {
+</span></span><span style=display:flex><span>        pos: <span style=font-weight:700>Vec2</span> { x: 0.5, y: -0.5 },
+</span></span><span style=display:flex><span>        color: <span style=font-weight:700>Vec3</span> {
+</span></span><span style=display:flex><span>            x: 0.0,
+</span></span><span style=display:flex><span>            y: 1.0,
+</span></span><span style=display:flex><span>            z: 0.0,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    Vertex {
+</span></span><span style=display:flex><span>        pos: <span style=font-weight:700>Vec2</span> { x: 0.5, y: 0.5 },
+</span></span><span style=display:flex><span>        color: <span style=font-weight:700>Vec3</span> {
+</span></span><span style=display:flex><span>            x: 0.0,
+</span></span><span style=display:flex><span>            y: 0.0,
+</span></span><span style=display:flex><span>            z: 1.0,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>    Vertex {
+</span></span><span style=display:flex><span>        pos: <span style=font-weight:700>Vec2</span> { x: -0.5, y: 0.5 },
+</span></span><span style=display:flex><span>        color: <span style=font-weight:700>Vec3</span> {
+</span></span><span style=display:flex><span>            x: 1.0,
+</span></span><span style=display:flex><span>            y: 1.0,
+</span></span><span style=display:flex><span>            z: 1.0,
+</span></span><span style=display:flex><span>        },
+</span></span><span style=display:flex><span>    },
+</span></span><span style=display:flex><span>];
+</span></span></code></pre></div><p>We also create some indices:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span><span style=font-weight:700>const</span> INDICES: [<span>u16</span>; 6] = [0, 1, 2, 2, 3, 0];
+</span></span></code></pre></div><p>The details of creating the index buffers are more-or-less identical to the vertex buffers:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>    <span style=font-weight:700>fn</span> create_index_buffer(
+</span></span><span style=display:flex><span>        instance: <span>&amp;</span><span style=font-weight:700>ash</span>::Instance,
+</span></span><span style=display:flex><span>        physical_device: <span>&amp;</span><span style=font-weight:700>vk</span>::PhysicalDevice,
+</span></span><span style=display:flex><span>        device: <span>&amp;</span><span style=font-weight:700>ash</span>::Device,
+</span></span><span style=display:flex><span>        command_pool: <span>&amp;</span><span style=font-weight:700>vk</span>::CommandPool,
+</span></span><span style=display:flex><span>        graphics_queue: <span>&amp;</span><span style=font-weight:700>vk</span>::Queue,
+</span></span><span style=display:flex><span>    ) -&gt; (vk::Buffer, vk::DeviceMemory) {
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> buffer_size = (INDICES.len() * size_of::&lt;<span>u16</span>&gt;()) <span style=font-weight:700>as</span> <span>u64</span>;
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> (staging_buffer, staging_buffer_memory) = VulkanDetails::create_buffer(
+</span></span><span style=display:flex><span>            instance,
+</span></span><span style=display:flex><span>            physical_device,
+</span></span><span style=display:flex><span>            device,
+</span></span><span style=display:flex><span>            buffer_size,
+</span></span><span style=display:flex><span>            vk::BufferUsageFlags::TRANSFER_SRC,
+</span></span><span style=display:flex><span>            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+</span></span><span style=display:flex><span>        );
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            <span style=font-weight:700>let</span> data = device
+</span></span><span style=display:flex><span>                .map_memory(
+</span></span><span style=display:flex><span>                    staging_buffer_memory,
+</span></span><span style=display:flex><span>                    0,
+</span></span><span style=display:flex><span>                    buffer_size,
+</span></span><span style=display:flex><span>                    vk::MemoryMapFlags::empty(),
+</span></span><span style=display:flex><span>                )
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            (data <span style=font-weight:700>as</span> *<span style=font-weight:700>mut</span> [<span>u16</span>; INDICES.len()]).write(INDICES);
+</span></span><span style=display:flex><span>            device.unmap_memory(staging_buffer_memory);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=font-weight:700>let</span> (<span style=font-weight:700>mut</span> buffer, buffer_memory) = VulkanDetails::create_buffer(
+</span></span><span style=display:flex><span>            instance,
+</span></span><span style=display:flex><span>            physical_device,
+</span></span><span style=display:flex><span>            device,
+</span></span><span style=display:flex><span>            buffer_size,
+</span></span><span style=display:flex><span>            vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER,
+</span></span><span style=display:flex><span>            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+</span></span><span style=display:flex><span>        );
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        VulkanDetails::copy_buffer(
+</span></span><span style=display:flex><span>            device,
+</span></span><span style=display:flex><span>            command_pool,
+</span></span><span style=display:flex><span>            graphics_queue,
+</span></span><span style=display:flex><span>            &amp;staging_buffer,
+</span></span><span style=display:flex><span>            &amp;<span style=font-weight:700>mut</span> buffer,
+</span></span><span style=display:flex><span>            buffer_size,
+</span></span><span style=display:flex><span>        );
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            device.destroy_buffer(staging_buffer, None);
+</span></span><span style=display:flex><span>            device.free_memory(staging_buffer_memory, None);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        (buffer, buffer_memory)
+</span></span><span style=display:flex><span>    }
+</span></span></code></pre></div><p>Then all that&rsquo;s left is modifying our drawing:</p><div class=highlight><pre tabindex=0 style=background-color:#fff;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-rust data-lang=rust><span style=display:flex><span>        <span style=font-weight:700>unsafe</span> {
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .cmd_set_scissor(self.command_buffers[self.current_frame], 0, &amp;[scissor]);
+</span></span><span style=display:flex><span>            self.device.cmd_bind_vertex_buffers(
+</span></span><span style=display:flex><span>                self.command_buffers[self.current_frame],
+</span></span><span style=display:flex><span>                0,
+</span></span><span style=display:flex><span>                &amp;vertex_buffers,
+</span></span><span style=display:flex><span>                &amp;offsets,
+</span></span><span style=display:flex><span>            );
+</span></span><span style=display:flex><span>            self.device.cmd_bind_index_buffer(
+</span></span><span style=display:flex><span>                self.command_buffers[self.current_frame],
+</span></span><span style=display:flex><span>                self.index_buffer,
+</span></span><span style=display:flex><span>                0,
+</span></span><span style=display:flex><span>                vk::IndexType::UINT16,
+</span></span><span style=display:flex><span>            );
+</span></span><span style=display:flex><span>            self.device.cmd_draw_indexed(
+</span></span><span style=display:flex><span>                self.command_buffers[self.current_frame],
+</span></span><span style=display:flex><span>                INDICES.len() <span style=font-weight:700>as</span> <span>u32</span>,
+</span></span><span style=display:flex><span>                1,
+</span></span><span style=display:flex><span>                0,
+</span></span><span style=display:flex><span>                0,
+</span></span><span style=display:flex><span>                0,
+</span></span><span style=display:flex><span>            );
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .cmd_end_render_pass(self.command_buffers[self.current_frame]);
+</span></span><span style=display:flex><span>            self.device
+</span></span><span style=display:flex><span>                .end_command_buffer(self.command_buffers[self.current_frame])
+</span></span><span style=display:flex><span>                .unwrap();
+</span></span><span style=display:flex><span>        }
+</span></span></code></pre></div><p>With that, we now have a rectangle instead of a triangle! Plus, our vertex data can now come from anywhere, not just our shaders themselves!</p></div><footer></footer></article></section></div><footer class=footer><section class=container>©
+2022
+Brad Dragun (LuuBluum)
+·
+Powered by <a href=https://gohugo.io/>Hugo</a> & <a href=https://github.com/luizdepra/hugo-coder/>Coder</a>.</section></footer></main><script src=/js/coder.min.236049395dc3682fb2719640872958e12f1f24067bb09c327b233e6290c7edac.js integrity="sha256-I2BJOV3DaC+ycZZAhylY4S8fJAZ7sJwyeyM+YpDH7aw="></script></body></html>
