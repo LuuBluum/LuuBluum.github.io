@@ -239,7 +239,7 @@ We clean up the pool right before the descriptor set layout. However, this only 
             unsafe {
                 device.update_descriptor_sets(
                     [descriptor_write].as_ref(),
-                    &[] as &[vk::CopyDescriptorSet],
+                    &[],
                 );
             }
         }
